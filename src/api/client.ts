@@ -5,13 +5,15 @@ type ApiClient = {
 export function createApiClient(env: Env): ApiClient {
 	const baseUrl = env.EFFICY_URL;
 	const apiKey = env.EFFICY_APIKEY;
+	const customer = env.EFFICY_CUSTOMER;
 
 	return {
 		async query(body: unknown[]): Promise<unknown> {
 			const response = await globalThis.fetch(baseUrl, {
 				method: "POST",
 				headers: {
-					"Authorization": `Bearer ${apiKey}`,
+					'X-Efficy-Customer': customer,
+					"X-Efficy-ApiKey": apiKey,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify(body),
