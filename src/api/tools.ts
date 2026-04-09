@@ -115,4 +115,47 @@ export function registerTools(server: McpServer, env: Env) {
 			}
 		},
 	);
+
+	server.registerTool(
+		"fetch_introduction_statuses",
+		{
+			description:
+				"Fetches the valid Efficy introduction statuses for PROD_COMP.F_INTRODUCTION_STAGE. Returns the allowed status labels and ids so the agent can map natural-language status wording to a valid Efficy status before preparing a proposal.",
+			inputSchema: {},
+		},
+		async () => {
+			const client = createApiClient(env);
+			try {
+				const result = (await client.query([
+					{
+						"@name": "api",
+						"@func": [
+							{
+								"@name": "getlookupdata",
+								"tableid": "30010",
+								"fieldname": "F_INTRODUCTION_STAGE",
+							},
+						],
+					},
+				])) as any;
+
+				const statuses = result[0]["@func"][0]["#result"]["#data"];
+
+				return {
+					content: [
+						{ type: "text", text: JSON.stringify(statuses, null, 2) },
+					],
+				};
+			} catch (error) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+						},
+					],
+				};
+			}
+		},
+	);
 }
