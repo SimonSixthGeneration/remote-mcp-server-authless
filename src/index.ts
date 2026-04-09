@@ -57,6 +57,11 @@ export class MyMCP extends McpAgent {
 
 export default {
 	fetch(request: Request, env: Env, ctx: ExecutionContext) {
+		const apiKey = request.headers.get("X-API-Key");
+		if (!apiKey || apiKey !== env.MCP_API_KEY) {
+			return new Response("Unauthorized", { status: 401 });
+		}
+
 		const url = new URL(request.url);
 
 		if (url.pathname === "/mcp") {

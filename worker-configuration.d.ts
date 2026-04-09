@@ -8,6 +8,7 @@ declare namespace Cloudflare {
         EFFICY_APIKEY: string;
         EFFICY_CUSTOMER: string;
         EFFICY_URL: string;
+        MCP_API_KEY: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
