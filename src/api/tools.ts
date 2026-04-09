@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { createApiClient } from "./client.js";
 
 const EXCLUDED_PACKAGINGS = ["", "GESCHENKVERPAKKING", "DISPLAY"];
@@ -37,6 +38,65 @@ export function registerTools(server: McpServer, env: Env) {
 						packaging: p.R_F_PACKAGING || null,
 						family: p.R_FAMILY,
 					}));
+
+				return {
+					content: [
+						{ type: "text", text: JSON.stringify(products, null, 2) },
+					],
+				};
+			} catch (error) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+						},
+					],
+				};
+			}
+		},
+	);
+
+	server.registerTool(
+		"fetch_company_products",
+		{
+			description:
+				"Fetches the existing product assortment for the fixed Efficy company K_COMPANY 32920. Returns the current company-product relations so you can determine whether a requested product should be added or updated, and inspect the current introduction status before preparing a proposal.",
+			inputSchema: {
+				K_COMPANY: z
+					.string()
+					.describe("The company identifier (e.g. 32920)"),
+			},
+		},
+		async ({ K_COMPANY }) => {
+			const client = createApiClient(env);
+			try {
+				const result = (await client.query([
+					{
+						"@name": "api",
+						"@func": [
+							{
+								"@name": "query",
+								"key": "8888001",
+								"param1": Number(K_COMPANY),
+							},
+						],
+					},
+				])) as any;
+
+				const rows =
+					result[0]["@func"][0]["#result"]["#data"] as any[];
+
+				const products = rows.map((row: any) => ({
+					k_product: row.K_PRODUCT,
+					k_company: row.K_COMPANY,
+					k_relation: row.K_RELATION,
+					from_date: row.F_FROM_DATE || null,
+					selling_price: row.F_SELLING_PRICE ?? null,
+					selling_unity: row.R_F_SELLING_UNITY || null,
+					introduction_stage_id: row.F_INTRODUCTION_STAGE ?? null,
+					scanned: row.F_SCANNED === "1" || row.F_SCANNED === 1,
+				}));
 
 				return {
 					content: [
