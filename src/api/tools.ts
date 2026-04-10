@@ -117,6 +117,81 @@ export function registerTools(server: McpServer, env: Env) {
 	);
 
 	server.registerTool(
+		"fetch_company_products_with_details",
+		{
+			description:
+				"Fetches the company product assortment for the given K_COMPANY and enriches each row with product details (name, family, packaging) by joining against the full Efficy product catalog. Use this instead of fetch_company_products when you need product names alongside the company-product relation data in a single call.",
+			inputSchema: {
+				K_COMPANY: z
+					.string()
+					.describe("The company identifier (e.g. 32920)"),
+			},
+		},
+		async ({ K_COMPANY }) => {
+			const client = createApiClient(env);
+			try {
+				const result = (await client.query([
+					{
+						"@name": "api",
+						"@func": [
+							{
+								"@name": "query",
+								"key": "8888001",
+								"param1": Number(K_COMPANY),
+							},
+						],
+					},
+					{
+						"@name": "api",
+						"@func": [{ "@name": "query", "key": "8888007" }],
+					},
+				])) as any;
+
+				const companyRows =
+					result[0]["@func"][0]["#result"]["#data"] as any[];
+				const productRows =
+					result[1]["@func"][0]["#result"]["#data"] as any[];
+
+				const productMap = new Map<number, any>(
+					productRows.map((p: any) => [Number(p.K_PRODUCT), p]),
+				);
+
+				const enriched = companyRows.map((row: any) => {
+					const product = productMap.get(Number(row.K_PRODUCT));
+					return {
+						k_product: row.K_PRODUCT,
+						k_company: row.K_COMPANY,
+						k_relation: row.K_RELATION,
+						name: product?.NAME ?? null,
+						family: product?.R_FAMILY ?? null,
+						packaging: product?.R_F_PACKAGING || null,
+						from_date: row.F_FROM_DATE || null,
+						selling_price: row.F_SELLING_PRICE ?? null,
+						selling_unity: row.R_F_SELLING_UNITY || null,
+						introduction_stage_id: row.F_INTRODUCTION_STAGE ?? null,
+						scanned: row.F_SCANNED === "1" || row.F_SCANNED === 1,
+					};
+				});
+
+				return {
+					content: [
+						{ type: "text", text: JSON.stringify(enriched, null, 2) },
+					],
+				};
+			} catch (error) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+						},
+					],
+				};
+			}
+		},
+	);
+
+	server.registerTool(
 		"fetch_introduction_statuses",
 		{
 			description:
